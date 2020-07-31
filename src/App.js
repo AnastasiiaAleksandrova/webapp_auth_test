@@ -24,33 +24,41 @@ export default class App extends React.Component {
         this.state = {
             login: "processing",
             active_screen: "welcome",
-            logs: "START1",
+            logs: "START",
         };
 
         this.myHappyCallback = this.myHappyCallback.bind(this);
     }
 
-    myHappyCallback(result) {
+    async myHappyCallback(result) {
+        console.log(result);
+
         this.setState((state) => ({
-            logs: state.logs + JSON.stringify(result),
+            logs: state.logs + " GOT_TOKEN",
         }));
-        return fetch(
+        let response = await fetch(
             "http://localhost:5001/authtest-22c51/us-central1/widgets/testToken",
             {
                 headers: {
-                    Authorization: "Bearer " + result.credential.accessToken,
+                    Authorization: "Bearer " + result,
                     "Content-Type": "application/json",
                 },
             }
-        );
+        )
+            .then((res) => res.json())
+            .then((data) => data);
+        return response;
     }
 
     async checkRedirect() {
         const auth = firebase.auth();
         const result = await auth.getRedirectResult();
         if (result.user !== null) {
-            console.log(result.credential.accessToken);
-            return true;
+            let funRes = await this.myHappyCallback(
+                result.credential.accessToken
+            );
+            console.log(funRes.login);
+            return funRes.login;
         } else {
             return false;
         }
@@ -59,9 +67,15 @@ export default class App extends React.Component {
     async componentDidMount() {
         var user = await this.checkRedirect();
         if (user) {
-            this.setState((state) => ({
-                logs: state.logs + " Authenticated",
-            }));
+            if (user === "failed") {
+                this.setState((state) => ({
+                    logs: state.logs + " FAILED",
+                }));
+            } else {
+                this.setState((state) => ({
+                    logs: state.logs + " SUCCESS",
+                }));
+            }
         } else {
             firebase.auth().signInWithRedirect(provider);
         }
